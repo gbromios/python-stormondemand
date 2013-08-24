@@ -10,29 +10,53 @@ from getpass import getpass
 from lwexceptions import *
 
 class LWApi(object):
-  """
-    user - the api user (a string)
-    password - the user's password (a string). If the password is omitted, it will need to be entered via stdin anytime the auth token needs to be updated. This is only recommended for CLI applications. If CLI interactivity is not required, the password should be supplied.
-    api_version - the version of the api that will be used (a string). defaults to 'v1'. 'bleed' may also be used at the moment.
-    verify - whether the SSL certificate for the api should be verified (a bool). Defaults to True. This is primarily for testing. The public api should *always* have a valid SSL certificate!
-    docfile - name of the file that contains the api documentation in json format. This file may be downloaded here:
-      http://www.liquidweb.com/StormServers/api/docs/v1/docs.json
-    if no filename is supplied, the documentation will be downloaded automatically.
-  """
-  def __init__(self, user, password=None, api_version='v1', verify=True, docfile=None):
+  def __init__(self, user, password=None, api_version='v1', verify=True, docfile=None, authfile=None):
+    """
+user - the api user (a string)
+
+password - the user's password (a string). If the password is omitted, it will need to be entered via stdin anytime the auth token needs to be updated. This is only recommended for CLI applications. If CLI interactivity is not required, the password should be supplied.
+
+api_version - the version of the api that will be used (a string). defaults to 'v1'. 'bleed' may also be used at the moment. 
+
+verify - whether the SSL certificate for the api should be verified (a bool). Defaults to True. This is primarily for testing. The public api should *always* have a valid SSL certificate!
+
+docfile - name of the file that contains the api documentation in json format. This file may be downloaded here:
+- http://www.liquidweb.com/StormServers/api/docs/v1/docs.json
+if no filename is supplied, the documentation will be downloaded automatically. If a filename is supplied, but the file does not exist, LWApi will attempt to save the downloaded documentation there. This behavior may be desriable for certain CLI applications where a new LWApi object is created for each request.
+
+authfile - by default, auth tokens are not stored persistently, and will only exist until the LWApi object is garbage collected. if a filename is supplied, LWApi will attempt to store the auth token (along with its expiry time) there so that it may be used by multiple LWApi objects. This behavior may be desriable for certain CLI applications where a new LWApi object is created for each request.
+    """
     self._url = 'https://api.stormondemand.com/%s/' % api_version 
     self._user = user
     self._password = password
 
     self._verify = verify
 
+    self._authfile = authfile
+
     # auth token & expiry time. These will be set via calls to _get_token().
     self._token = ''
     self._expires = 0
 
     # generate the dict of methods, based on json documentation.
+    # if we're given a local file for the docs
     if docfile:
-      docs = open(docfile,'r')
+      try: 
+        docs = open(docfile,'r')
+      except IOError:
+        #if we're given a file that does not exist, create it and write the docs to it.
+        new_docs_file = open(docfile,'w')
+        downloaded_docs = urllib.urlopen(('http://www.liquidweb.com/StormServers/api/docs/%s/docs.json' % api_version))
+
+        new_docs_file.write( downloaded_docs.read() )
+
+        downloaded_docs.close()
+        new_docs_file.close()
+
+        # then open the new file
+        docs = open(docfile,'r')
+
+    # otherwise, just download them
     else:
       docs = urllib.urlopen(('http://www.liquidweb.com/StormServers/api/docs/%s/docs.json' % api_version))
 
@@ -50,27 +74,72 @@ class LWApi(object):
     docs.close()
 
   def _get_token(self):
-    # if no password is given, attempt to retreive it from stdin    
+    """
+      obtain an auth token, either via the /Account/Auth/token api method, or by reading a locally stored token.
+    """
+    # if no password is given
     if self._password == None:
-      print "need to retrieve auth token. please enter password for user `%s`" % self._user
-      passwd = getpass('pass > ')
+    
+      # check to see if we're using an auth file.
+      if self._authfile:
+        # if we are, try to use it.
+        try:
+          # read the values in
+          af = open(self._authfile, 'r')
+          self._token = af.readline()
+          self._expires = int(af.readline())
+          af.close()
+
+          # make sure the token we read is still good
+          now = int(time.time())
+          if self._expires == 0 or now > self._expires + 5:
+            # it's sort of shady to raise IOError when there's no IOError
+            # but it's an easy way to get us somewhere that will skip over
+            # the early return AND get us the password 
+            raise IOError
+
+          # if the file was readable and had a valid token
+          # then exit from the function early
+          return
+          
+        
+        # if it's not there, grab the password as normal, we'll write the authfile later
+        except IOError:
+          print "need to retrieve auth token. please enter password for user `%s`" % self._user
+          passwd = getpass('pass > ')
+
+      # if no auth file was given, grab the password as normal.
+      else:
+        print "need to retrieve auth token. please enter password for user `%s`" % self._user
+        passwd = getpass('pass > ')
     else:
       passwd = self._password
 
-    auth = requests.auth.HTTPBasicAuth(self._user,passwd)
+    # assemble and send the post request to obtain the key
+    auth = requests.auth.HTTPBasicAuth(self._user, passwd)
     url = self._url + 'Account/Auth/token'
     data = '{"params":{"timeout":"3600"}}'
+    r = requests.post(url=url, auth=auth, data=data, verify=self._verify)
 
-    r = requests.post(url=url, auth=auth, verify=self._verify)
-
+    # raise an error if we don't get a 200 response
     if r.status_code != 200:
       raise BadResponseException(r.status_code, r.text)
 
     else:
       self._token = json.loads(r.text)['token']
-      self._expires =  int(json.loads(r.text)['expires'])
+      self._expires = int(json.loads(r.text)['expires'])
+
+      # if the user would like to save the token, write it into the file with
+      # the expiry time.
+      if self._authfile:
+        af = open(authfile, 'w')
+        af.write('%s\n%d' % (self._token, self._expires))
+        af.close
 
   def _get_auth(self):
+    """
+      returns a requests.auth.HTTPBasicAuth object
+    """
     now = int(time.time())
     # if the auth token is not set, or if it has expired/is about to expire
     if self._expires == 0 or now > self._expires + 5:
