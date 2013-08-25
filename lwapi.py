@@ -1,4 +1,7 @@
 """stormpy - a simple client library for accessing the Liquid Web Storm API, written in python
+
+see the official documentation for more information about the api itself:
+  http://www.liquidweb.com/StormServers/api/docs/v1
 """
 
 import os
@@ -10,7 +13,7 @@ from getpass import getpass
 from lwexceptions import *
 
 class LWApi(object):
-  def __init__(self, user, password=None, api_version='v1', verify=True, docfile=None, authfile=None):
+  def __init__(self, user, password=None, api_version='v1', verify=True, docfile=None, authfile=None, raw_json=False):
     """
 user - the api user (a string)
 
@@ -25,12 +28,15 @@ docfile - name of the file that contains the api documentation in json format. T
 if no filename is supplied, the documentation will be downloaded automatically. If a filename is supplied, but the file does not exist, LWApi will attempt to save the downloaded documentation there. This behavior may be desriable for certain CLI applications where a new LWApi object is created for each request.
 
 authfile - by default, auth tokens are not stored persistently, and will only exist until the LWApi object is garbage collected. if a filename is supplied, LWApi will attempt to store the auth token (along with its expiry time) there so that it may be used by multiple LWApi objects. This behavior may be desriable for certain CLI applications where a new LWApi object is created for each request.
+
+raw_json - by default, LWApi.req() will return a python object generated from the json string sent by the server. By setting this value to True, req() will return the raw json string. This may also be overridden while calling the method if desired.
     """
     self._url = 'https://api.stormondemand.com/%s/' % api_version 
     self._user = user
     self._password = password
 
     self._verify = verify
+    self._raw_json = raw_json
 
     self._authfile = authfile
 
@@ -148,14 +154,21 @@ authfile - by default, auth tokens are not stored persistently, and will only ex
     return requests.auth.HTTPBasicAuth(self._user, self._token)
       
 
-  def req(self, path, data={}):
+  def req(self, path, data={}, raw_json=None):
     """make a POST request to the storm api
       path -- a string contaning the method you'd like to call. Methods are Case sensitive. Leading slash may be included or omitted
         ex. 'Utilities/Info/ping'
       
-      data -- POST data to be used by the request. 
+      data -- POST data to be used by the request, formatted as a dict. parameters be added directly:
+        data = {'page_size':'20'}
+      or as the value to a 'params' key:
+        data = {"params":{"page_size":"20"}}
 
-      returns a dictionary containing the server's response. This dictionary will be formatted according to the documentation:
+      The latter is how the API expects the data to be formatted, but if a dict of parameters is passed directly, LWApi will add the params key automatically. This should be a little easier to work with.
+
+      raw_json -- may be used to override the default return value. True to return a json string, False to return an object, None to use the instance default. 
+
+      RETURNS: either a json formatted string, or the python object composed from said string, dependign on user's preference. 
     """
     # if the path starts with a /, strip it off.
     if path[0] == '/':
@@ -230,4 +243,15 @@ authfile - by default, auth tokens are not stored persistently, and will only ex
         raise Exception(response)
     
     # no error:
-    return response
+
+    # if the user has not overriden the return setting for this call, return the default type
+    if raw_json is None:
+      if self._raw_json:
+        return req.text
+      else:
+        return response
+
+    elif raw_json:
+      return req.text
+    else:
+      return response
