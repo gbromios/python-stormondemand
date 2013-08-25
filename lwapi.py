@@ -25,7 +25,7 @@ verify - whether the SSL certificate for the api should be verified (a bool). De
 
 docfile - name of the file that contains the api documentation in json format. This file may be downloaded here:
 - http://www.liquidweb.com/StormServers/api/docs/v1/docs.json
-if no filename is supplied, the documentation will be downloaded automatically. If a filename is supplied, but the file does not exist, LWApi will attempt to save the downloaded documentation there. This behavior may be desriable for certain CLI applications where a new LWApi object is created for each request.
+If no filename is given, the docs will be saved in the stormy directory
 
 authfile - by default, auth tokens are not stored persistently, and will only exist until the LWApi object is garbage collected. if a filename is supplied, LWApi will attempt to store the auth token (along with its expiry time) there so that it may be used by multiple LWApi objects. This behavior may be desriable for certain CLI applications where a new LWApi object is created for each request.
 
@@ -46,25 +46,25 @@ raw_json - by default, LWApi.req() will return a python object generated from th
 
     # generate the dict of methods, based on json documentation.
     # if we're given a local file for the docs
-    if docfile:
-      try: 
-        docs = open(docfile,'r')
-      except IOError:
-        #if we're given a file that does not exist, create it and write the docs to it.
-        new_docs_file = open(docfile,'w')
-        downloaded_docs = urllib.urlopen(('http://www.liquidweb.com/StormServers/api/docs/%s/docs.json' % api_version))
 
-        new_docs_file.write( downloaded_docs.read() )
+    # if no docfile is given, use docs.json in the stormpy directory
+    if docfile is None:
+      docfile = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'docs.json')
+      print docfile
+    try: 
+      docs = open(docfile,'r')
+    except IOError:
+      #if we're given a file that does not exist, create it and write the docs to it.
+      new_docs_file = open(docfile,'w')
+      downloaded_docs = urllib.urlopen(('http://www.liquidweb.com/StormServers/api/docs/%s/docs.json' % api_version))
 
-        downloaded_docs.close()
-        new_docs_file.close()
+      new_docs_file.write( downloaded_docs.read() )
 
-        # then open the new file
-        docs = open(docfile,'r')
+      downloaded_docs.close()
+      new_docs_file.close()
 
-    # otherwise, just download them
-    else:
-      docs = urllib.urlopen(('http://www.liquidweb.com/StormServers/api/docs/%s/docs.json' % api_version))
+      # then open the new file
+      docs = open(docfile,'r')
 
     # we process the raw docs to make them a little easier to work with,
     # so that each method is at the top level in the generated dict 
