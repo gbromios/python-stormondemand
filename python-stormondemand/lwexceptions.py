@@ -1,4 +1,4 @@
-"""lwexceptions.py - exceptions that may be thrown by the api client
+"""lwexceptions.py - exceptions that may be thrown by the LWApi client
 
    Copyright 2013 Liquid Web, Inc. 
 

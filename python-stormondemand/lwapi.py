@@ -61,7 +61,7 @@ raw_json - by default, LWApi.req() will return a python object generated from th
     # generate the dict of methods, based on json documentation.
     # if we're given a local file for the docs
 
-    # if no docfile is given, use docs.json in the stormpy directory
+    # if no docfile is given, use docs.json in the library's directory
     if docfile is None:
       docfile = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'docs.json')
     try: 

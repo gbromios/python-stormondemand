@@ -16,9 +16,9 @@
 """
 import unittest
 import os
-from stormpy.lwapi import LWApi
+from python-stormondemand.lwapi import LWApi
 
-class StormpyTests(unittest.TestCase):
+class StormTests(unittest.TestCase):
   username = os.getenv('UNAME')
   password = os.getenv('PASSWD')
 
