@@ -16,11 +16,15 @@
 """
 import unittest
 import os
-from python-stormondemand.lwapi import LWApi
+from sys import argv
+from stormondemandpy.lwapi import LWApi
+
+if len(argv) != 3:
+  raise Exception("usage: tests.py USERNAME PASSWORD\ntests require valid api credentials"
 
 class StormTests(unittest.TestCase):
-  username = os.getenv('UNAME')
-  password = os.getenv('PASSWD')
+  username = 
+  password = 
 
   def test_placeholder(self):
     # tests aren't much at the moment, but I'll add more later
