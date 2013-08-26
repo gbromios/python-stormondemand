@@ -1,7 +1,21 @@
-"""stormpy - a simple client library for accessing the Liquid Web Storm API, written in python
+"""python-stormondemand - a simple client library for accessing the Liquid Web Storm API, written in python
 
-see the official documentation for more information about the api itself:
-  http://www.liquidweb.com/StormServers/api/docs/v1
+  see the official documentation for more information about the api itself:
+    http://www.liquidweb.com/StormServers/api/docs/v1
+
+   Copyright 2013 Liquid Web, Inc. 
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 """
 
 import os
@@ -56,7 +70,7 @@ raw_json - by default, LWApi.req() will return a python object generated from th
       #if we're given a file that does not exist, create it and write the docs to it.
       new_docs_file = open(docfile,'w')
       downloaded_docs = urllib.urlopen(('http://www.liquidweb.com/StormServers/api/docs/%s/docs.json' % api_version))
-
+  
       new_docs_file.write( downloaded_docs.read() )
 
       downloaded_docs.close()

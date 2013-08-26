@@ -1,2 +1,6 @@
 # basic .gitignore for python projects
 *.py[cod]
+
+# these are the docs, don't include them with the library. They're automatically downloaded
+docs.json
+
