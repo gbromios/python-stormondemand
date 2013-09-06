@@ -20,18 +20,17 @@ from sys import argv
 from stormondemandpy.lwapi import LWApi
 
 if len(argv) != 3:
-  raise Exception("usage: tests.py USERNAME PASSWORD\ntests require valid api credentials"
+  raise Exception("usage: tests.py USERNAME PASSWORD\ntests require valid api credentials")
 
-class StormTests(unittest.TestCase):
-  username = 
-  password = 
+class StormTests():
+  username = argv[1]
+  password = argv[2]
 
   def test_placeholder(self):
     # tests aren't much at the moment, but I'll add more later
     a = LWApi(self.username, self.password)
-    a.req('Utilities/Info/ping')
+    r = a.req('Utilities/Info/ping')
+    print r, ' this is what the storm api has to say about your creds.\n Coming soon: real tests :P'
 
-    
-
-if __name__ == '__main__':
-  unittest.main()
+s = StormTests()
+s.test_placeholder()
