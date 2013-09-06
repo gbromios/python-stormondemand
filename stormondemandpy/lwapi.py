@@ -27,13 +27,15 @@ from getpass import getpass
 from lwexceptions import *
 
 class LWApi(object):
-  def __init__(self, user, password=None, api_version='v1', verify=True, docfile=None, authfile=None, raw_json=False):
+  def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, docfile=None, authfile=None, raw_json=False):
     """
 user - the api user (a string)
 
 password - the user's password (a string). If the password is omitted, it will need to be entered via stdin anytime the auth token needs to be updated. This is only recommended for CLI applications. If CLI interactivity is not required, the password should be supplied.
 
-api_version - the version of the api that will be used (a string). defaults to 'v1'. 'bleed' may also be used at the moment. 
+url - the url of the storm on demand api. This is for testing and development purposes, and won't need to be changed for normal usage. 
+
+api_version - the version of the api that will be used (a string). defaults to 'v1'. 'bleed' may also be used at the moment to access the API's neweset methods. 
 
 verify - whether the SSL certificate for the api should be verified (a bool). Defaults to True. This is primarily for testing. The public api should *always* have a valid SSL certificate!
 
@@ -45,7 +47,7 @@ authfile - by default, auth tokens are not stored persistently, and will only ex
 
 raw_json - by default, LWApi.req() will return a python object generated from the json string sent by the server. By setting this value to True, req() will return the raw json string. This may also be overridden while calling the method if desired.
     """
-    self._url = 'https://api.stormondemand.com/%s/' % api_version 
+    self._url = 'https://%s/%s/' % (url, api_version) 
     self._user = user
     self._password = password
 
