@@ -29,3 +29,9 @@ class BadResponseException(Exception):
   def __init__(self, code, text):
     message = ('Received bad response from the server: %d\n%s' % (code, text))
     super(BadResponseException, self).__init__(message)
+
+# LW::Exception::Resource::Unavailable
+class ResourceUnavailableException(Exception):
+  def __init__(self, resource):
+    super(ResourceUnavailableException, self).__init__(resource)
+    

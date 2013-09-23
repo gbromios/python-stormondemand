@@ -26,6 +26,8 @@ import json
 from getpass import getpass
 from lwexceptions import *
 
+
+
 class LWApi(object):
   def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, docfile=None, authfile=None, raw_json=False):
     """
@@ -253,6 +255,10 @@ raw_json - by default, LWApi.req() will return a python object generated from th
       if ec == 'LW::Exception::API::InvalidMethod':
         # this error should be checked at input validation. getting this means docs are out of date!
         raise Exception(response['full_message']) 
+  
+      if ec == 'LW::Exception::Resource::Unavailable':
+        raise ResourceUnavailableException(response)
+
       # unhandled errors...
       else:
         raise Exception(response)
