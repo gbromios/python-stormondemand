@@ -251,20 +251,9 @@ raw_json - by default, LWApi.req() will return a python object generated from th
 
     # handling errors: per the API docs, check the response for an 'error_class' key:
     if 'error_class' in response:
-      ec = response['error_class']
-      if ec == 'LW::Exception::API::InvalidMethod':
-        # this error should be checked at input validation. getting this means docs are out of date!
-        raise Exception(response['full_message']) 
-  
-      if ec == 'LW::Exception::Resource::Unavailable':
-        raise ResourceUnavailableException(response)
+      raise StormException(response['error_class'],response['full_message']) 
 
-      # unhandled errors...
-      else:
-        raise Exception(response)
-    
     # no error:
-
     # if the user has not overriden the return setting for this call, return the default type
     if raw_json is None:
       if self._raw_json:
