@@ -36,5 +36,5 @@ class BadResponseException(Exception):
 class StormException(Exception):
   def __init__(self, error_class, full_message):
     self.error_class = error_class
-    super(ResourceUnavailableException, self).__init__(full_message)
+    super(StormException, self).__init__(full_message)
     
