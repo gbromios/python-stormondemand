@@ -24,12 +24,33 @@ import urllib
 import time
 import json
 from getpass import getpass
-from lwexceptions import *
 
+class HTTPException(Exception):
+"""
+	raised when an HTTP error is encountered; e.g. 401 Permission Denied. If StormOnDemand itself has an issue preventing the request, a StormException may be raised.
+"""
+	def __init__(self, code, text):
+		self.code = code
+		self.text = text
+		message = ('Received bad response from the server: %d\n%s' % (code, text))
+		super(BadResponseException, self).__init__(message)
 
+class StormException(Exception):
+"""
+error_class - the type of error encountered, follows the form `LW::Exception::Something::Bad`; you can read more about possible error types here: https://www.stormondemand.com/api/docs/tutorials/exceptions.html
+error_message - details of the error recieved
+
+full_message - the full text of the error provided by the server. Will be used as the message of the python base Exception type. 
+
+this exception will be raised when there is an error_class key in the server response. If you would like to handle such errors yourself, this exception may be disabled by setting `raise_exceptions=False` when creating an LWApi object. Regardless, the BadResponseException will still be raised if the server responds in a way that can't be handled. e.g. 401 Permission Denied.
+"""
+	def __init__(self, error_class, error_message, full_message):
+		self.error_class = error_class
+		self.error_message = error_message
+		super(StormException, self).__init__(full_message)
 
 class LWApi(object):
-	def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, docfile=None, authfile=None, raw_json=False):
+	def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, docfile=None, authfile=None, raw_json=False, raise_exceptions=True):
 		"""
 user - the api user (a string)
 
@@ -48,6 +69,8 @@ If no filename is given, the docs will be saved in the stormy directory
 authfile - by default, auth tokens are not stored persistently, and will only exist until the LWApi object is garbage collected. if a filename is supplied, LWApi will attempt to store the auth token (along with its expiry time) there so that it may be used by multiple LWApi objects. This behavior may be desriable for certain CLI applications where a new LWApi object is created for each request.
 
 raw_json - by default, LWApi.req() will return a python object generated from the json string sent by the server. By setting this value to True, req() will return the raw json string. This may also be overridden while calling the method if desired.
+
+raise_exceptions - by default, LWApi will raise a StormException if there is an error_class key in the server's response. If you would like to handle these errors yourself. this can be set to False. you can read more about Error Responses here: https://www.stormondemand.com/api/docs/tutorials/exceptions.html ; please note that bad http responses (e.g. 401) will still cause a HTTPException to be raised.
 		"""
 		self._url = 'https://%s/%s/' % (url, api_version) 
 		self._user = user
@@ -55,6 +78,7 @@ raw_json - by default, LWApi.req() will return a python object generated from th
 
 		self._verify = verify
 		self._raw_json = raw_json
+		self._raise_exceptions = raise_exceptions
 
 		self._authfile = authfile
 
@@ -251,7 +275,7 @@ raw_json - by default, LWApi.req() will return a python object generated from th
 
 		# handling errors: per the API docs, check the response for an 'error_class' key:
 		if 'error_class' in response:
-			raise StormException(response['error_class'],response['full_message']) 
+			raise StormException(response['error_class'], response['error_message'], response['full_message']) 
 
 		# no error:
 		# if the user has not overriden the return setting for this call, return the default type
