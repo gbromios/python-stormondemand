@@ -20,7 +20,6 @@
 
 import os
 import requests
-import urllib
 import time
 import json
 from getpass import getpass
@@ -50,7 +49,7 @@ this exception will be raised when there is an error_class key in the server res
 		super(StormException, self).__init__(full_message)
 
 class LWApi(object):
-	def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, docfile=None, authfile=None, raw_json=False, raise_exceptions=True):
+	def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, authfile=None, raw_json=False, raise_exceptions=True):
 		"""
 user - the api user (a string)
 
@@ -61,10 +60,6 @@ url - the url of the storm on demand api. This is for testing and development pu
 api_version - the version of the api that will be used (a string). defaults to 'v1'. 'bleed' may also be used at the moment to access the API's neweset methods. 
 
 verify - whether the SSL certificate for the api should be verified (a bool). Defaults to True. This is primarily for testing. The public api should *always* have a valid SSL certificate!
-
-docfile - name of the file that contains the api documentation in json format. This file may be downloaded here:
-- http://www.liquidweb.com/StormServers/api/docs/v1/docs.json
-If no filename is given, the docs will be saved in the stormy directory
 
 authfile - by default, auth tokens are not stored persistently, and will only exist until the LWApi object is garbage collected. if a filename is supplied, LWApi will attempt to store the auth token (along with its expiry time) there so that it may be used by multiple LWApi objects. This behavior may be desriable for certain CLI applications where a new LWApi object is created for each request.
 
@@ -85,40 +80,6 @@ raise_exceptions - by default, LWApi will raise a StormException if there is an 
 		# auth token & expiry time. These will be set via calls to _get_token().
 		self._token = ''
 		self._expires = 0
-
-		# generate the dict of methods, based on json documentation.
-		# if we're given a local file for the docs
-
-		# if no docfile is given, use docs.json in the library's directory
-		if docfile is None:
-			docfile = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'docs.json')
-		try: 
-			docs = open(docfile,'r')
-		except IOError:
-			#if we're given a file that does not exist, create it and write the docs to it.
-			new_docs_file = open(docfile,'w')
-			downloaded_docs = urllib.urlopen(('http://www.liquidweb.com/StormServers/api/docs/%s/docs.json' % api_version))
-	
-			new_docs_file.write( downloaded_docs.read() )
-
-			downloaded_docs.close()
-			new_docs_file.close()
-
-			# then open the new file
-			docs = open(docfile,'r')
-
-		# we process the raw docs to make them a little easier to work with,
-		# so that each method is at the top level in the generated dict 
-		self._docs = {} 
-		j_docs = json.load(docs)
-
-		for path in j_docs.keys():
-			methods = j_docs[path]
-			for m in methods['__methods']:
-				method = path + '/' + m
-				self._docs[method] = methods['__methods'][m]
-
-		docs.close()
 
 	def _get_token(self):
 		"""
@@ -226,41 +187,6 @@ raise_exceptions - by default, LWApi will raise a StormException if there is an 
 		# this is where input validation should take place
 		# presently, we just make sure that the required parameters are given
 		# but eventually we will add type checking
-
-		if path not in self._docs:
-			# invalid method!
-			raise NoMethodException(path) 
-
-		method = self._docs[path]
-
-		# check given parameters 
-		for param in data:
-			# make sure there aren't any we're not expecting 
-			if param not in method['__input']:
-				raise InvalidParamException(param, path)
-
-			# make sure the type is correct... but do that later
-			# ( type validation goes here )
-
-		# check expected parameters to make sure required/non-optional params are
-		# present... I guess there's a difference according to the docs? hoefully
-		# this will be addressed at some point, some input parameters are marked
-		# as optional: 1|0, others are marked as required as required: 1|0, but
-		# there seems to be no rhyme or reason to this.
-		for param in method['__input']:
-			param_dict = method['__input'][param]
-			if param not in data:
-				# if a parameter wasn't supplied and there's a default, use the default
-				if 'default' in param_dict:
-					default = param_dict['default']
-					data[param] = default
-					
-				# if the parameter is required/non-optional/whatever, and it's not
-				# present, throw an error
-				elif ('optional' in param_dict and param_dict['optional'] == '0')\
-				or ('required' in param_dict and param_dict['required'] == '1')\
-				or ('optional' not in param_dict and 'required' not in param_dict):
-					raise RequiredParamMissingException(param, path)
 
 		url = self._url + path
 		req = requests.post(url=url, auth=self._get_auth(),\
