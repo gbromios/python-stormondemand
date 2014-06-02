@@ -18,7 +18,6 @@
 	 limitations under the License.
 """
 
-import os
 import requests
 import time
 import json
