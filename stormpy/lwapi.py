@@ -49,7 +49,7 @@ this exception will be raised when there is an error_class key in the server res
 		super(StormException, self).__init__(full_message)
 
 class LWApi(object):
-	def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, authfile=None, raw_json=False, raise_exceptions=True):
+	def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, raw_json=False, raise_exceptions=True):
 		"""
 user - the api user (a string)
 
@@ -61,11 +61,9 @@ api_version - the version of the api that will be used (a string). defaults to '
 
 verify - whether the SSL certificate for the api should be verified (a bool). Defaults to True. This is primarily for testing. The public api should *always* have a valid SSL certificate!
 
-authfile - by default, auth tokens are not stored persistently, and will only exist until the LWApi object is garbage collected. if a filename is supplied, LWApi will attempt to store the auth token (along with its expiry time) there so that it may be used by multiple LWApi objects. This behavior may be desriable for certain CLI applications where a new LWApi object is created for each request.
-
 raw_json - by default, LWApi.req() will return a python object generated from the json string sent by the server. By setting this value to True, req() will return the raw json string. This may also be overridden while calling the method if desired.
 
-raise_exceptions - by default, LWApi will raise a StormException if there is an error_class key in the server's response. If you would like to handle these errors yourself. this can be set to False. you can read more about Error Responses here: https://www.stormondemand.com/api/docs/tutorials/exceptions.html ; please note that bad http responses (e.g. 401) will still cause a HTTPException to be raised.
+raise_exceptions - by default, LWApi will raise a StormException if there is an error_class key in the server's response. If you would like to handle these errors yourself. this can be set to False. you can read more about Error Responses here: https://www.stormondemand.com/api/docs/tutorials/exceptions.html ; please note that bad http responses (e.g. 401) will still cause a HTTPException to be raised. Additionally, if automatic token handling is being used, a StormException will be raised if there is an issue with the call to /Account/Auth/token
 		"""
 		self._url = 'https://%s/%s/' % (url, api_version) 
 		self._user = user
@@ -75,51 +73,17 @@ raise_exceptions - by default, LWApi will raise a StormException if there is an 
 		self._raw_json = raw_json
 		self._raise_exceptions = raise_exceptions
 
-		self._authfile = authfile
-
 		# auth token & expiry time. These will be set via calls to _get_token().
 		self._token = ''
 		self._expires = 0
 
 	def _get_token(self):
 		"""
-			obtain an auth token, either via the /Account/Auth/token api method, or by reading a locally stored token.
+			obtain an auth token via the /Account/Auth/token api method
 		"""
 		# if no password is given
 		if self._password == None:
-		
-			# check to see if we're using an auth file.
-			if self._authfile:
-				# if we are, try to use it.
-				try:
-					# read the values in
-					af = open(self._authfile, 'r')
-					self._token = af.readline()
-					self._expires = int(af.readline())
-					af.close()
-
-					# make sure the token we read is still good
-					now = int(time.time())
-					if self._expires == 0 or now > self._expires + 5:
-						# it's sort of shady to raise IOError when there's no IOError
-						# but it's an easy way to get us somewhere that will skip over
-						# the early return AND get us the password 
-						raise IOError
-
-					# if the file was readable and had a valid token
-					# then exit from the function early
-					return
-					
-				
-				# if it's not there, grab the password as normal, we'll write the authfile later
-				except IOError:
-					print "need to retrieve auth token. please enter password for user `%s`" % self._user
-					passwd = getpass('pass > ')
-
-			# if no auth file was given, grab the password as normal.
-			else:
-				print "need to retrieve auth token. please enter password for user `%s`" % self._user
-				passwd = getpass('pass > ')
+			passwd = getpass()
 		else:
 			passwd = self._password
 
@@ -127,22 +91,22 @@ raise_exceptions - by default, LWApi will raise a StormException if there is an 
 		auth = requests.auth.HTTPBasicAuth(self._user, passwd)
 		url = self._url + 'Account/Auth/token'
 		data = '{"params":{"timeout":"3600"}}'
-		r = requests.post(url=url, auth=auth, data=data, verify=self._verify)
+		req = requests.post(url=url, auth=auth, data=data, verify=self._verify)
 
 		# raise an error if we don't get a 200 response
-		if r.status_code != 200:
+		if req.status_code != 200:
 			raise BadResponseException(r.status_code, r.text)
 
-		else:
-			self._token = json.loads(r.text)['token']
-			self._expires = int(json.loads(r.text)['expires'])
+		response = json.loads(req.text)
 
-			# if the user would like to save the token, write it into the file with
-			# the expiry time.
-			if self._authfile:
-				af = open(authfile, 'w')
-				af.write('%s\n%d' % (self._token, self._expires))
-				af.close
+		# ensure request was successful:
+		if 'error_class' in response:
+			raise StormException(response['error_class'], response['error_message'], response['full_message'])
+		else:
+			self._token = response['token']
+			self._expires = int(response['expires'])
+
+		return self._token
 
 	def _get_auth(self):
 		"""
@@ -150,7 +114,7 @@ raise_exceptions - by default, LWApi will raise a StormException if there is an 
 		"""
 		now = int(time.time())
 		# if the auth token is not set, or if it has expired/is about to expire
-		if self._expires == 0 or now > self._expires + 5:
+		if self._expires == 0 or now + 60 > self._expires:
 			self._get_token()
 
 		return requests.auth.HTTPBasicAuth(self._user, self._token)
@@ -172,25 +136,20 @@ raise_exceptions - by default, LWApi will raise a StormException if there is an 
 
 			RETURNS: either a json formatted string, or the python object composed from said string, dependign on user's preference. 
 		"""
-		# if the path starts with a /, strip it off.
-		if path[0] == '/':
+		# if the path starts with a /, strip it off. if they didn't give a path, the api will error out, but that's cleaner than dealing with the error here.
+		if path and path[0] == '/':
 			path = path[1:]
 
-		# if the postdata is enclosed in a 'params' hash, just use the value.
-		# support the {"params":{"key":"value"}} because it complies with the
-		# docs, but the data is easier to use without it, so we'll put it in
-		# when we make the request.
-		if data.keys() == ['params']:
-			data = data['params']
-
-
-		# this is where input validation should take place
-		# presently, we just make sure that the required parameters are given
-		# but eventually we will add type checking
+		# the docs say to put your data in a hash, the top level of which should be a
+		#  key called 'params'... this is sort of redundant, so for simplicity's sake
+		# we will support dicts that are formatted per the docs, and format them thus
+		# if it's just the bare params.
+		if 'params' not in data.keys():
+			data = {'params': data}
 
 		url = self._url + path
 		req = requests.post(url=url, auth=self._get_auth(),\
-												data=json.dumps({'params':data}), verify=self._verify)
+			data=json.dumps({'params':data}), verify=self._verify)
 
 		# make sure the request was completed successfully
 		if req.status_code != 200:
@@ -199,11 +158,10 @@ raise_exceptions - by default, LWApi will raise a StormException if there is an 
 		# turn the response into a json object
 		response = json.loads(req.text)
 
-		# handling errors: per the API docs, check the response for an 'error_class' key:
-		if 'error_class' in response:
+		# handling errors: per the API docs, check the response for an 'error_class'
+		#  key (if the user has requested that we raise errors for them, that is):
+		if self._raise_exceptions and 'error_class' in response:
 			raise StormException(response['error_class'], response['error_message'], response['full_message']) 
-
-		# no error:
 		# if the user has not overriden the return setting for this call, return the default type
 		if raw_json is None:
 			if self._raw_json:
