@@ -48,7 +48,7 @@ this exception will be raised when there is an error_class key in the server res
 		super(StormException, self).__init__(full_message)
 
 class LWApi(object):
-	def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, raw_json=False, raise_exceptions=True):
+	def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, raw_json=False, raise_exceptions=True, use_tokens=True):
 		"""
 user - the api user (a string)
 
@@ -63,6 +63,8 @@ verify - whether the SSL certificate for the api should be verified (a bool). De
 raw_json - by default, LWApi.req() will return a python object generated from the json string sent by the server. By setting this value to True, req() will return the raw json string. This may also be overridden while calling the method if desired.
 
 raise_exceptions - by default, LWApi will raise a StormException if there is an error_class key in the server's response. If you would like to handle these errors yourself. this can be set to False. you can read more about Error Responses here: https://www.stormondemand.com/api/docs/tutorials/exceptions.html ; please note that bad http responses (e.g. 401) will still cause a HTTPException to be raised. Additionally, if automatic token handling is being used, a StormException will be raised if there is an issue with the call to /Account/Auth/token
+
+use_tokens - by default, LWApi is used persistently and will automatically use auth tokens via the /Account/Auth/token method. If this behavior is not desired, this can be set to false.
 		"""
 		self._url = 'https://%s/%s/' % (url, api_version) 
 		self._user = user
@@ -71,23 +73,33 @@ raise_exceptions - by default, LWApi will raise a StormException if there is an 
 		self._verify = verify
 		self._raw_json = raw_json
 		self._raise_exceptions = raise_exceptions
+		self._use_tokens = use_tokens
 
 		# auth token & expiry time. These will be set via calls to _get_token().
-		self._token = ''
+		self._token = None
 		self._expires = 0
+
+	def _get_password(self):
+		"""
+			prompts user for password if it's not stored in memory
+		"""
+		if self._password:
+			return self._password
+		else:
+			return getpass()
 
 	def _get_token(self):
 		"""
-			obtain an auth token via the /Account/Auth/token api method
+			return a stored token, or obtain one via the /Account/Auth/token api method and return that
 		"""
-		# if no password is given
-		if self._password == None:
-			passwd = getpass()
-		else:
-			passwd = self._password
 
+		# if we have a valid token, and it's not about to expire, return that
+		if self._token and time.time() + 60 < self._expires:
+			return self._token
+
+		# otherwise, go on and get a new token.
 		# assemble and send the post request to obtain the key
-		auth = requests.auth.HTTPBasicAuth(self._user, passwd)
+		auth = requests.auth.HTTPBasicAuth(self._user, self._get_password())
 		url = self._url + 'Account/Auth/token'
 		data = '{"params":{"timeout":"3600"}}'
 		req = requests.post(url=url, auth=auth, data=data, verify=self._verify)
@@ -101,22 +113,21 @@ raise_exceptions - by default, LWApi will raise a StormException if there is an 
 		# ensure request was successful:
 		if 'error_class' in response:
 			raise StormException(response['error_class'], response['error_message'], response['full_message'])
-		else:
-			self._token = response['token']
-			self._expires = int(response['expires'])
 
+		# store the new token/expiry time and return the token
+		self._token = response['token']
+		self._expires = int(response['expires'])
 		return self._token
 
 	def _get_auth(self):
 		"""
 			returns a requests.auth.HTTPBasicAuth object
 		"""
-		now = int(time.time())
-		# if the auth token is not set, or if it has expired/is about to expire
-		if self._expires == 0 or now + 60 > self._expires:
-			self._get_token()
-
-		return requests.auth.HTTPBasicAuth(self._user, self._token)
+		if self._use_tokens:
+			return requests.auth.HTTPBasicAuth(self._user, self._get_token())
+		else:
+			return requests.auth.HTTPBasicAuth(self._user, self._get_password())
+			
 			
 
 	def req(self, path, data={}, raw_json=None):
@@ -142,13 +153,14 @@ raise_exceptions - by default, LWApi will raise a StormException if there is an 
 		# the docs say to put your data in a hash, the top level of which should be a
 		#  key called 'params'... this is sort of redundant, so for simplicity's sake
 		# we will support dicts that are formatted per the docs, and format them thus
-		# if it's just the bare params.
+		# if it's just the bare params. when we finally make the call, we will format
+		# the given params into a json string.
 		if 'params' not in data.keys():
-			data = {'params': data}
+			data = { 'params': data }
 
 		url = self._url + path
 		req = requests.post(url=url, auth=self._get_auth(),\
-			data=json.dumps({'params':data}), verify=self._verify)
+			data=json.dumps(data), verify=self._verify)
 
 		# make sure the request was completed successfully
 		if req.status_code != 200:
