@@ -24,9 +24,9 @@ import json
 from getpass import getpass
 
 class HTTPException(Exception):
-"""
-	raised when an HTTP error is encountered; e.g. 401 Permission Denied. If StormOnDemand itself has an issue preventing the request, a StormException may be raised.
-"""
+	"""
+raised when an HTTP error is encountered; e.g. 401 Permission Denied. If StormOnDemand itself has an issue preventing the request, a StormException may be raised.
+	"""
 	def __init__(self, code, text):
 		self.code = code
 		self.text = text
@@ -34,14 +34,14 @@ class HTTPException(Exception):
 		super(BadResponseException, self).__init__(message)
 
 class StormException(Exception):
-"""
+	"""
 error_class - the type of error encountered, follows the form `LW::Exception::Something::Bad`; you can read more about possible error types here: https://www.stormondemand.com/api/docs/tutorials/exceptions.html
 error_message - details of the error recieved
 
 full_message - the full text of the error provided by the server. Will be used as the message of the python base Exception type. 
 
 this exception will be raised when there is an error_class key in the server response. If you would like to handle such errors yourself, this exception may be disabled by setting `raise_exceptions=False` when creating an LWApi object. Regardless, the BadResponseException will still be raised if the server responds in a way that can't be handled. e.g. 401 Permission Denied.
-"""
+	"""
 	def __init__(self, error_class, error_message, full_message):
 		self.error_class = error_class
 		self.error_message = error_message
