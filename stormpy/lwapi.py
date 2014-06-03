@@ -31,7 +31,7 @@ raised when an HTTP error is encountered; e.g. 401 Permission Denied. If StormOn
 		self.code = code
 		self.text = text
 		message = ('Received bad response from the server: %d\n%s' % (code, text))
-		super(BadResponseException, self).__init__(message)
+		super(HTTPException, self).__init__(message)
 
 class StormException(Exception):
 	"""
@@ -40,11 +40,11 @@ error_message - details of the error recieved
 
 full_message - the full text of the error provided by the server. Will be used as the message of the python base Exception type. 
 
-this exception will be raised when there is an error_class key in the server response. If you would like to handle such errors yourself, this exception may be disabled by setting `raise_exceptions=False` when creating an LWApi object. Regardless, the BadResponseException will still be raised if the server responds in a way that can't be handled. e.g. 401 Permission Denied.
+this exception will be raised when there is an error_class key in the server response. If you would like to handle such errors yourself, this exception may be disabled by setting `raise_exceptions=False` when creating an LWApi object. Regardless, the HTTPException will still be raised if the server responds in a way that can't be handled. e.g. 401 Permission Denied.
 	"""
-	def __init__(self, error_class, error_message, full_message):
+	def __init__(self, error_class, full_message):
 		self.error_class = error_class
-		self.error_message = error_message
+		self.full_message = full_message
 		super(StormException, self).__init__(full_message)
 
 class LWApi(object):
@@ -106,13 +106,13 @@ use_tokens - by default, LWApi is used persistently and will automatically use a
 
 		# raise an error if we don't get a 200 response
 		if req.status_code != 200:
-			raise BadResponseException(r.status_code, r.text)
+			raise HTTPException(req.status_code, req.text)
 
 		response = json.loads(req.text)
 
 		# ensure request was successful:
 		if 'error_class' in response:
-			raise StormException(response['error_class'], response['error_message'], response['full_message'])
+			raise StormException(response['error_class'], response['full_message'])
 
 		# store the new token/expiry time and return the token
 		self._token = response['token']
@@ -164,7 +164,7 @@ use_tokens - by default, LWApi is used persistently and will automatically use a
 
 		# make sure the request was completed successfully
 		if req.status_code != 200:
-			raise BadResponseException(req.status_code, req.text)
+			raise HTTPException(req.status_code, req.text)
 
 		# turn the response into a json object
 		response = json.loads(req.text)
@@ -172,7 +172,7 @@ use_tokens - by default, LWApi is used persistently and will automatically use a
 		# handling errors: per the API docs, check the response for an 'error_class'
 		#  key (if the user has requested that we raise errors for them, that is):
 		if self._raise_exceptions and 'error_class' in response:
-			raise StormException(response['error_class'], response['error_message'], response['full_message']) 
+			raise StormException(response['error_class'], response['full_message']) 
 		# if the user has not overriden the return setting for this call, return the default type
 		if raw_json is None:
 			if self._raw_json:
