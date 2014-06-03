@@ -1,11 +1,13 @@
-python-stormondemand
-=======
-a lightweight [StormOnDemand API](https://www.stormondemand.com/api/) python wrapper based on the [requests library](http://docs.python-requests.org/en/latest/)
+# python-stormondemand #
+
+##### version 0.2 #####
+
+a lightweight [StormOnDemand API](https://www.stormondemand.com/api/) python wrapper based on the [requests library](http://docs.python-requests.org/en/latest/), released as open source under the Apache 2.0 License.
 
 presently, the entire functionality of the library is available in the lwapi.py module.
 
-Basic Example
--------
+### Basic Example ###
+
 
 ```python
 $ python -i
@@ -113,8 +115,15 @@ Password:
 That's a basic overview of the functionality currently present in stormpy.lwapi, and should allow you to perform any action in the [StormOnDemand API](https://www.stormondemand.com/api/) by reading the documentation.
 
 
+### Future ###
 
+When I have a chance, here are some features I'd like to add:
 
+- native python function calls would be a nice addition, though this is low priority given the current ease of use.
+
+- just for sanity, unit tests are in the works
+
+- package the module as a .egg and possibly even upload it to pypi; if the project grows at all, this will be nice to have!
 
 
 

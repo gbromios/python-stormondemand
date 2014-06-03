@@ -1,4 +1,4 @@
-"""python-stormondemand - a simple client library for accessing the Liquid Web Storm API, written in python
+"""python-stormondemand 0.2 - a simple client library for accessing the Liquid Web Storm API, written in python
 
 	see the official documentation for more information about the api itself:
 		http://www.liquidweb.com/StormServers/api/docs/v1
@@ -48,6 +48,10 @@ this exception will be raised when there is an error_class key in the server res
 		super(StormException, self).__init__(full_message)
 
 class LWApi(object):
+	_version = '0.2'
+	_user_agent = 'stormpy-lwapi/0.2'
+
+
 	def __init__(self, user, password=None, url='api.stormondemand.com', api_version='v1', verify=True, raw_json=False, raise_exceptions=True, use_tokens=True):
 		"""
 user - the api user (a string)
@@ -102,7 +106,8 @@ use_tokens - by default, LWApi is used persistently and will automatically use a
 		auth = requests.auth.HTTPBasicAuth(self._user, self._get_password())
 		url = self._url + 'Account/Auth/token'
 		data = '{"params":{"timeout":"3600"}}'
-		req = requests.post(url=url, auth=auth, data=data, verify=self._verify)
+		req = requests.post(url=url, auth=auth, data=data, verify=self._verify,\
+			headers={'User-Agent': self._user_agent})
 
 		# raise an error if we don't get a 200 response
 		if req.status_code != 200:
@@ -160,7 +165,8 @@ use_tokens - by default, LWApi is used persistently and will automatically use a
 
 		url = self._url + path
 		req = requests.post(url=url, auth=self._get_auth(),\
-			data=json.dumps(data), verify=self._verify)
+			data=json.dumps(data), verify=self._verify,\
+			headers={'User-Agent': self._user_agent})
 
 		# make sure the request was completed successfully
 		if req.status_code != 200:
