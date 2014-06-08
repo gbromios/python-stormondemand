@@ -3,3 +3,6 @@
 
 # always ignore vim cruft
 *.swp
+
+# ignore auto-generated client lib files:
+native/
