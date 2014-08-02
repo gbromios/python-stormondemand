@@ -119,7 +119,7 @@ That's a basic overview of the functionality currently present in stormpy.lwapi,
 
 When I have a chance, here are some features I'd like to add:
 
-- native python function calls would be a nice addition, though this is low priority given the current ease of use.
+- native python function calls are now available in the stormpy/build_client.py module. I haven't documented them yet, but they work!
 
 - just for sanity, unit tests are in the works
 
