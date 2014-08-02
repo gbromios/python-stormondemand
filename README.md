@@ -14,8 +14,8 @@ $ python -i
 
 >>> # create an LWApi object:
 
->>> from stormpy import lwapi
->>> storm = lwapi.LWApi("username", "password")
+>>> from stormpy import LWApi
+>>> storm = LWApi("username", "password")
 
 
 >>> # use the LWApi.req() method to call methods on the Storm API. If the
@@ -58,7 +58,7 @@ u'CENTOS 6.5 64-BIT SELF-MANAGED'
 >>> # if the storm interface returns an error, LWApi will raise an exception
 >>> try:
 ...     storm.req('/Some/Invented/method')
-... except lwapi.StormException as e:
+... except stormpy.StormException as e:
 ...     print e.error_class
 ...     print e.full_message
 ...
@@ -69,7 +69,7 @@ Invalid API method: some/invented/method
 >>> # however, this behavior can be disabled if desired, allowing you to check
 >>> # and handle exceptions manually:
 
->>> storm_2 = lwapi.LWApi("username", "password", raise_exceptions=False)
+>>> storm_2 = LWApi("username", "password", raise_exceptions=False)
 >>> storm_2.req('/Storm/Server/details', data={'uniq_id': '000000'})
 {
     "field": "subaccnt", 
@@ -84,7 +84,7 @@ Invalid API method: some/invented/method
 >>> # case, the user will be prompted for a password upon making a request.
 >>> # naturally, doing so should be limited strictly to CLI applications:
 
->>> storm_cli = lwapi.LWApi("username", None)
+>>> storm_cli = LWApi("username", None)
 >>> storm_cli.req('/Utilities/Info/ping')
 Password: 
 {u'ping': u'success'}
@@ -102,7 +102,7 @@ Password:
 >>> # be sent on every request. Note that this will prompt the user for their
 >>> # password on every single request:
 
->>> storm_no_pass = lwapi.LWApi("username", None, use_tokens=False)
+>>> storm_no_pass = LWApi("username", None, use_tokens=False)
 >>> storm_no_pass.req('/Utilities/Info/ping')
 Password:
 {u'ping': u'success'}
